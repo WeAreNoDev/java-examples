@@ -13,36 +13,56 @@ import java.net.Socket;
  *
  * @author harisk
  */
-public class SingleThreadedServer implements Runnable {
+public class MultiThreadedServer implements Runnable {
 
-    private ServerSocket serverSocket;
-    private final int serverPort;
-    private boolean isStopped = false;
+    /**
+     * Worker Thread
+     */
+    public class RunnableWorker implements Runnable {
 
-    public SingleThreadedServer(int port) {
-        this.serverPort = port;
+        private final Socket clientSocket;
+
+        public RunnableWorker(Socket clientSocket) {
+            this.clientSocket = clientSocket;
+        }
+
+        @Override
+        public void run() {
+            try {
+                InputStream input = clientSocket.getInputStream();
+                OutputStream output = clientSocket.getOutputStream();
+
+                long time = System.currentTimeMillis();
+                byte[] responseDocument = ("<html><body>"
+                        + "SingleThreadedServer time: "
+                        + time
+                        + "</body></html>").getBytes("UTF-8");
+
+                byte[] responseHeader = ("HTTP/1.1 200 OK\r\n"
+                        + "Content-Type: text/html; charset=UTF-8\r\n"
+                        + "Content-Length: " + responseDocument.length
+                        + "\r\n\r\n").getBytes("UTF-8");
+
+                output.write(responseHeader);
+                output.write(responseDocument);
+
+                output.close();
+                input.close();
+
+                System.out.println("Request processed: " + time);
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
-    private void processClientRequest(Socket clientSocket) throws Exception {
-        InputStream input = clientSocket.getInputStream();
-        OutputStream output = clientSocket.getOutputStream();
-        long time = System.currentTimeMillis();
+    private int serverPort;
+    private ServerSocket serverSocket;
+    private boolean isStopped = false;
 
-        byte[] responseDocument = ("<html><body>"
-                + "SingleThreadedServer time: "
-                + time
-                + "</body></html>").getBytes("UTF-8");
-
-        byte[] responseHeader = ("HTTP/1.1 200 OK\r\n"
-                + "Content-Type: text/html; charset=UTF-8\r\n"
-                + "Content-Length: " + responseDocument.length
-                + "\r\n\r\n").getBytes("UTF-8");
-
-        output.write(responseHeader);
-        output.write(responseDocument);
-        output.close();
-        input.close();
-        System.out.println("Request processed: " + time);
+    public MultiThreadedServer(int port) {
+        this.serverPort = port;
     }
 
     private synchronized boolean isStopped() {
@@ -87,13 +107,7 @@ public class SingleThreadedServer implements Runnable {
                 throw new RuntimeException("Error on accept client connection", e);
 
             }
-
-            try {
-                processClientRequest(clientSocket);
-
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
+            new Thread(new RunnableWorker(clientSocket)).start();
         }
 
         System.out.println("Server stopped");
@@ -101,7 +115,7 @@ public class SingleThreadedServer implements Runnable {
 
     public static void main(String[] args) {
 
-        SingleThreadedServer server = new SingleThreadedServer(8080);
+        MultiThreadedServer server = new MultiThreadedServer(8080);
 
         /**
          * Run server in single thread
@@ -124,5 +138,4 @@ public class SingleThreadedServer implements Runnable {
         server.stop();
         System.exit(0);
     }
-
 }

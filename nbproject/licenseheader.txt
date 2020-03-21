@@ -1,0 +1,8 @@
+<#if licenseFirst??>
+${licenseFirst}
+</#if>
+${licensePrefix}License from https://github.com/wearenodev
+${licensePrefix}We Are Not Only Developers 
+<#if licenseLast??>
+${licenseLast}
+</#if>
